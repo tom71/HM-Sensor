@@ -6,10 +6,17 @@
  */ 
 
 //- load library's --------------------------------------------------------------------------------------------------------
+#include <Arduino.h>
 #include <AS.h>																				// ask sin framework
 #include "register.h"																		// configuration sheet
+#include "dht.h"
 
 #define SER_DBG
+
+#define DHT_PIN		6
+dht DHT;
+
+void serialEvent();
 
 
 //- arduino functions -----------------------------------------------------------------------------------------------------
@@ -32,10 +39,10 @@ void setup() {
 	// enable only what is really needed
 
 	#ifdef SER_DBG																			// some debug
-	dbgStart();																			// serial setup
+	dbgStart();																				// serial setup
 	dbg << F("HM_LC_SW1_BA_PCB\n");
 	dbg << F(LIB_VERSION_STRING);
-	_delay_ms (50);																		// ...and some information
+	_delay_ms (50);																			// ...and some information
 	#endif
 	
 	// - AskSin related ---------------------------------------
@@ -44,30 +51,27 @@ void setup() {
 
 	// - user related -----------------------------------------
 	#ifdef SER_DBG
-	dbg << F("HMID: ") << _HEX(HMID,3) << F(", MAID: ") << _HEX(MAID,3) << F("\n\n");	// some debug
+	dbg << F("HMID: ") << _HEX(HMID,3) << F(", MAID: ") << _HEX(MAID,3) << F("\n\n");		// some debug
 	#endif
 }
 
 
 //- user functions --------------------------------------------------------------------------------------------------------
-void initRly(uint8_t channel) {
-	// setting the relay pin as output, could be done also by pinMode(3, OUTPUT)
-	#ifdef SER_DBG
-	dbg << F("initRly: ") << channel << "\n";
-	#endif
+void initTH1() {																			// init the sensor
+	DDRB |= _BV(PORTB1);
+	PORTB |= _BV(PORTB1);
 	
-	//pinOutput(DDRD,3);																		// init the relay pins
-	//setPinLow(PORTD,3);																		// set relay pin to ground
+	#ifdef SER_DBG
+	dbg << "init th1\n";
+	#endif
 }
 
-void switchRly(uint8_t channel, uint8_t status) {
-	// switching the relay, could be done also by digitalWrite(3,HIGH or LOW)
+void measureTH1() {
+	DHT.read22(DHT_PIN);																	// read the sensor
+	
 	#ifdef SER_DBG
-	dbg << F("switchRly: ") << channel << ", " << status << "\n";
+	dbg << "t: " << DHT.temperature << ", h: " << DHT.humidity << ' ' << _TIME << '\n';
 	#endif
-
-	//if (status) setPinHigh(PORTD,3);														// check status and set relay pin accordingly
-	//else setPinLow(PORTD,3);
 }
 
 
@@ -85,7 +89,7 @@ int main(void)
 			hm.poll();																				// poll the homematic main loop
 
 			// - user related -----------------------------------------
-
+			serialEvent();
     }
 }
 

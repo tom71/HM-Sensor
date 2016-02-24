@@ -2,14 +2,18 @@
 //- load libraries -------------------------------------------------------------------------------------------------------
 #include <AS.h>                                                         // the asksin framework
 #include "hardware.h"                                                   // hardware definition
-#include <cmSwitch.h>
+#include <THSensor.h>
 
 //- stage modules --------------------------------------------------------------------------------------------------------
 AS hm;                                                                  // asksin framework
+THSensor thsens;                                                        // create instance of channel module
+uint8_t thVal = 0;														// variable which holds the measured value
 
-cmSwitch cmSwitch[1];                                                 // create instances of channel module
-extern void initRly(uint8_t channel);                                   // declare function to jump in
-extern void switchRly(uint8_t channel, uint8_t status);                 // declare function to jump in
+// some forward declarations
+extern void initTH1();
+extern void measureTH1();
+//extern void initRly(uint8_t channel);                                   // declare function to jump in
+//extern void switchRly(uint8_t channel, uint8_t status);                 // declare function to jump in
 
 //- ----------------------------------------------------------------------------------------------------------------------
 //- eeprom defaults table ------------------------------------------------------------------------------------------------
@@ -77,9 +81,11 @@ void everyTimeStart(void) {
 	hm.pw.setMode(0);                                                   // set power management mode
 
     // register user modules
-    cmSwitch[0].regInHM(1, 3, &hm);                                    // register user module
-    cmSwitch[0].config(&initRly, &switchRly);                          // configure user module
-
+    //cmSwitch[0].regInHM(1, 3, &hm);                                    // register user module
+    //cmSwitch[0].config(&initRly, &switchRly);                          // configure user module
+	thsens.regInHM(1, 4, &hm);											// register sensor module on channel 1, with a list4 and introduce asksin instance
+	thsens.config(&initTH1, &measureTH1, &thVal);						// configure the user class and handover addresses to respective functions and variables
+	thsens.timing(0, 0, 0);												// mode 0 transmit based on timing or 1 on level change; level change value; while in mode 1 timing value will stay as minimum delay on level change
 }
 
 void firstTimeStart(void) {
