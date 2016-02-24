@@ -10,11 +10,16 @@
 #include <AS.h>																				// ask sin framework
 #include "register.h"																		// configuration sheet
 #include "dht.h"
+#include "OneWire.h"
 
 #define SER_DBG
 
-#define DHT_PIN		6
+#define DHT_PWR		9																		// power for DHT22
+#define DHT_PIN		6																		// this pin DHT22 is connected to
+#define OW_PIN		5																		// this pin DS18B20 is connected to
+
 dht DHT;
+OneWire OW(OW_PIN);
 
 void serialEvent();
 
@@ -58,8 +63,11 @@ void setup() {
 
 //- user functions --------------------------------------------------------------------------------------------------------
 void initTH1() {																			// init the sensor
-	DDRB |= _BV(PORTB1);
-	PORTB |= _BV(PORTB1);
+	
+	pinMode(DHT_PWR, OUTPUT);
+	digitalWrite(DHT_PWR, 1);
+	
+	pinMode(OW_PIN, INPUT_PULLUP);
 	
 	#ifdef SER_DBG
 	dbg << "init th1\n";
@@ -67,7 +75,30 @@ void initTH1() {																			// init the sensor
 }
 
 void measureTH1() {
+	uint8_t rc;
+	uint8_t i;
+	uint8_t data[9];
+	
 	DHT.read22(DHT_PIN);																	// read the sensor
+	
+	rc = OW.reset();
+	OW.skip();
+	OW.write(0x44);																			// start conversion
+	dbg << "rc: " << rc << _TIME << '\n';
+	
+	_delay_ms(1000);
+	
+	OW.reset();
+	OW.skip();
+	OW.write(0xBE);																			// read scratchpad
+	for ( i = 0; i < 9; i++) {																// we need 9 bytes
+		 data[i] = OW.read();
+	}
+	float celsius = ((data[1] << 8) | data[0]) / 16.0;
+	
+	#ifdef SER_DBG
+	dbg << "DS-t: " << celsius << ' ' << _TIME << '\n';
+	#endif
 	
 	#ifdef SER_DBG
 	dbg << "t: " << DHT.temperature << ", h: " << DHT.humidity << ' ' << _TIME << '\n';

@@ -143,6 +143,7 @@ uint8_t OneWire::reset(void)
 
 	noInterrupts();
 	DIRECT_MODE_INPUT(reg, mask);
+	DIRECT_WRITE_HIGH(reg, mask);	// pull-up resistor drives line high
 	interrupts();
 	// wait until the wire is high... just in case
 	do {
@@ -157,6 +158,7 @@ uint8_t OneWire::reset(void)
 	delayMicroseconds(480);
 	noInterrupts();
 	DIRECT_MODE_INPUT(reg, mask);	// allow it to float
+	DIRECT_WRITE_HIGH(reg, mask);
 	delayMicroseconds(70);
 	r = !DIRECT_READ(reg, mask);
 	interrupts();
@@ -178,6 +180,7 @@ void OneWire::write_bit(uint8_t v)
 		DIRECT_WRITE_LOW(reg, mask);
 		DIRECT_MODE_OUTPUT(reg, mask);	// drive output low
 		delayMicroseconds(10);
+		DIRECT_MODE_INPUT(reg, mask);
 		DIRECT_WRITE_HIGH(reg, mask);	// drive output high
 		interrupts();
 		delayMicroseconds(55);
@@ -186,6 +189,7 @@ void OneWire::write_bit(uint8_t v)
 		DIRECT_WRITE_LOW(reg, mask);
 		DIRECT_MODE_OUTPUT(reg, mask);	// drive output low
 		delayMicroseconds(65);
+		DIRECT_MODE_INPUT(reg, mask);
 		DIRECT_WRITE_HIGH(reg, mask);	// drive output high
 		interrupts();
 		delayMicroseconds(5);
@@ -207,6 +211,7 @@ uint8_t OneWire::read_bit(void)
 	DIRECT_WRITE_LOW(reg, mask);
 	delayMicroseconds(3);
 	DIRECT_MODE_INPUT(reg, mask);	// let pin float, pull up will raise
+	DIRECT_WRITE_HIGH(reg, mask);
 	delayMicroseconds(10);
 	r = DIRECT_READ(reg, mask);
 	interrupts();
@@ -227,23 +232,23 @@ void OneWire::write(uint8_t v, uint8_t power /* = 0 */) {
     for (bitMask = 0x01; bitMask; bitMask <<= 1) {
 	OneWire::write_bit( (bitMask & v)?1:0);
     }
-    if ( !power) {
-	noInterrupts();
-	DIRECT_MODE_INPUT(baseReg, bitmask);
-	DIRECT_WRITE_LOW(baseReg, bitmask);
-	interrupts();
-    }
+    //if ( !power) {
+	//noInterrupts();
+	//DIRECT_MODE_INPUT(baseReg, bitmask);
+	//DIRECT_WRITE_LOW(baseReg, bitmask);
+	//interrupts();
+    //}
 }
 
 void OneWire::write_bytes(const uint8_t *buf, uint16_t count, bool power /* = 0 */) {
   for (uint16_t i = 0 ; i < count ; i++)
     write(buf[i]);
-  if (!power) {
-    noInterrupts();
-    DIRECT_MODE_INPUT(baseReg, bitmask);
-    DIRECT_WRITE_LOW(baseReg, bitmask);
-    interrupts();
-  }
+  //if (!power) {
+    //noInterrupts();
+    //DIRECT_MODE_INPUT(baseReg, bitmask);
+    //DIRECT_WRITE_LOW(baseReg, bitmask);
+    //interrupts();
+  //}
 }
 
 //

@@ -22,12 +22,12 @@
 
 // you can exclude onewire_search by defining that to 0
 #ifndef ONEWIRE_SEARCH
-#define ONEWIRE_SEARCH 1
+#define ONEWIRE_SEARCH 0
 #endif
 
 // You can exclude CRC checks altogether by defining this to 0
 #ifndef ONEWIRE_CRC
-#define ONEWIRE_CRC 1
+#define ONEWIRE_CRC 0
 #endif
 
 // Select the table-lookup method of computing the 8-bit CRC
