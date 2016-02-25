@@ -20,6 +20,8 @@
 
 dht DHT;
 OneWire OW(OW_PIN);
+waitTimer thTimer;
+float celsius;
 
 void serialEvent();
 
@@ -65,8 +67,6 @@ void setup() {
 void initTH1() {																			// init the sensor
 	
 	pinMode(DHT_PWR, OUTPUT);
-	digitalWrite(DHT_PWR, 1);
-	
 	pinMode(OW_PIN, INPUT_PULLUP);
 	
 	#ifdef SER_DBG
@@ -75,36 +75,58 @@ void initTH1() {																			// init the sensor
 }
 
 void measureTH1() {
-	uint8_t rc;
-	uint8_t i;
-	uint8_t data[9];
-	
-	DHT.read22(DHT_PIN);																	// read the sensor
-	
-	rc = OW.reset();
-	OW.skip();
-	OW.write(0x44);																			// start conversion
-	dbg << "rc: " << rc << _TIME << '\n';
-	
-	_delay_ms(1000);
-	
-	OW.reset();
-	OW.skip();
-	OW.write(0xBE);																			// read scratchpad
-	for ( i = 0; i < 9; i++) {																// we need 9 bytes
-		 data[i] = OW.read();
-	}
-	float celsius = ((data[1] << 8) | data[0]) / 16.0;
-	
 	#ifdef SER_DBG
-	dbg << "DS-t: " << celsius << ' ' << _TIME << '\n';
+	dbg << "msTH1 DS-t: " << celsius << ' ' << _TIME << '\n';
 	#endif
 	
 	#ifdef SER_DBG
-	dbg << "t: " << DHT.temperature << ", h: " << DHT.humidity << ' ' << _TIME << '\n';
+	dbg << "msTH1 t: " << DHT.temperature << ", h: " << DHT.humidity << ' ' << _TIME << '\n';
 	#endif
 }
 
+void measure() {
+	enum mState {mInit, mWait, mPwrOn, mStartDS};
+	static mState state = mInit;
+
+	if (!thTimer.done())
+		return;
+		
+	if (state == mInit) {																	// wait some time till next measurement
+		thTimer.set(15000);
+		state = mWait;
+	}
+	else if (state == mWait) {																// power on DHT22 and wait 1 sec
+		thTimer.set(1000);
+		digitalWrite(DHT_PWR, 1);
+		state = mPwrOn;
+		dbg << "power on DHT22" << _TIME << '\n';
+	}
+	else if (state == mPwrOn) {																// now start measurement on DS18B20 and wait another second
+		thTimer.set(1000);
+		uint8_t rc = OW.reset();
+		OW.skip();
+		OW.write(0x44);																		// start conversion
+		dbg << "rc: " << rc << _TIME << '\n';
+		state = mStartDS;
+	}
+	else if (state == mStartDS)	{
+		DHT.read22(DHT_PIN);																// read DHT22
+		dbg << "t: " << DHT.temperature << ", h: " << DHT.humidity << ' ' << _TIME << '\n';
+		
+		OW.reset();																			// and read result from DS18B20
+		OW.skip();
+		OW.write(0xBE);																		// read scratchpad
+		celsius = (OW.read() | (OW.read() << 8)) / 16.0;									// we need only first two bytes from scratchpad
+	
+		#ifdef SER_DBG
+		dbg << "DS-t: " << celsius << ' ' << _TIME << '\n';
+		#endif
+
+		digitalWrite(DHT_PWR, 0);															// power off DHT22
+		dbg << "power off DHT22" << _TIME << '\n';
+		state = mInit;
+	}
+}
 
 
 int main(void)
@@ -121,6 +143,7 @@ int main(void)
 
 			// - user related -----------------------------------------
 			serialEvent();
+			measure();
     }
 }
 
