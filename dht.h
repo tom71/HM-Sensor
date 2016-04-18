@@ -64,8 +64,8 @@ public:
     inline int8_t read33(uint8_t pin) { return read(pin); };
     inline int8_t read44(uint8_t pin) { return read(pin); };
 
-    double humidity;
-    double temperature;
+    uint16_t humidity;
+    int16_t  temperature;
 
 private:
     uint8_t bits[5];  // buffer to receive data

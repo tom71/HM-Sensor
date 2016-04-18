@@ -8,6 +8,7 @@
 //- load library's --------------------------------------------------------------------------------------------------------
 #include <Arduino.h>
 #include <AS.h>																				// ask sin framework
+#include <THSensor.h>
 #include "register.h"																		// configuration sheet
 #include "dht.h"
 #include "OneWire.h"
@@ -20,8 +21,8 @@
 
 dht DHT;
 OneWire OW(OW_PIN);
-waitTimer thTimer;
-float celsius;
+waitTimer thTimer, brTimer;
+int16_t celsius;
 
 void serialEvent();
 
@@ -74,56 +75,73 @@ void initTH1() {																			// init the sensor
 	#endif
 }
 
-void measureTH1() {
+void measureTH1(THSensor::s_meas *ptr) {
+	int16_t t;
+	
 	#ifdef SER_DBG
 	dbg << "msTH1 DS-t: " << celsius << ' ' << _TIME << '\n';
 	#endif
+	t = celsius / 10;
+	((uint8_t *)&(ptr->temp))[0] = ((t >> 8) & 0x7F) | (hm.bt.getStatus() << 7);
+	((uint8_t *)&(ptr->temp))[1] = t & 0xFF;
 	
 	#ifdef SER_DBG
-	dbg << "msTH1 t: " << DHT.temperature << ", h: " << DHT.humidity << ' ' << _TIME << '\n';
+	dbg << "msTH1 t: " << DHT.temperature << ", h: " << DHT.humidity << ' ' << _TIME << '\n'; _delay_ms(10);
 	#endif
+	ptr->hum = DHT.humidity / 10;
+	t = hm.bt.getVolts();
+	((uint8_t *)&(ptr->bat))[0] = t >> 8;
+	((uint8_t *)&(ptr->bat))[1] = t & 0xFF;
 }
 
 void measure() {
 	enum mState {mInit, mWait, mPwrOn, mStartDS};
-	static mState state = mInit;
+	static mState state = mWait;
 
 	if (!thTimer.done())
 		return;
 		
 	if (state == mInit) {																	// wait some time till next measurement
-		thTimer.set(15000);
+		thTimer.set(28000);
 		state = mWait;
 	}
-	else if (state == mWait) {																// power on DHT22 and wait 1 sec
+	else if (state == mWait) {																// power on sensor and wait 1 sec
 		thTimer.set(1000);
 		digitalWrite(DHT_PWR, 1);
 		state = mPwrOn;
-		dbg << "power on DHT22" << _TIME << '\n';
+		#ifdef SER_DBG
+		//dbg << "power on Sensor" << ' ' << _TIME << '\n';
+		#endif
 	}
 	else if (state == mPwrOn) {																// now start measurement on DS18B20 and wait another second
 		thTimer.set(1000);
 		uint8_t rc = OW.reset();
 		OW.skip();
 		OW.write(0x44);																		// start conversion
-		dbg << "rc: " << rc << _TIME << '\n';
+		#ifdef SER_DBG
+		//dbg << "rc: " << rc << _TIME << '\n';
+		#endif
 		state = mStartDS;
 	}
 	else if (state == mStartDS)	{
 		DHT.read22(DHT_PIN);																// read DHT22
+		#ifdef SER_DBG
 		dbg << "t: " << DHT.temperature << ", h: " << DHT.humidity << ' ' << _TIME << '\n';
+		#endif
 		
 		OW.reset();																			// and read result from DS18B20
 		OW.skip();
 		OW.write(0xBE);																		// read scratchpad
-		celsius = (OW.read() | (OW.read() << 8)) / 16.0;									// we need only first two bytes from scratchpad
+		celsius = ((uint32_t)(OW.read() | (OW.read() << 8)) * 100) >> 4;					// we need only first two bytes from scratchpad
 	
 		#ifdef SER_DBG
-		dbg << "DS-t: " << celsius << ' ' << _TIME << '\n';
+		dbg << "DS-t: " << celsius << ' ' << _TIME << '\n'; _delay_ms(10);
 		#endif
 
 		digitalWrite(DHT_PWR, 0);															// power off DHT22
-		dbg << "power off DHT22" << _TIME << '\n';
+		#ifdef SER_DBG
+		//dbg << "power off Sensor" << ' ' << _TIME << '\n';
+		#endif
 		state = mInit;
 	}
 }
@@ -134,6 +152,7 @@ int main(void)
 	// Initialize all functions and pins
 	setup();
 	int i = 0;
+	//static uint8_t brCnt = 0;
 	
     /* Replace with your application code */
     while (1) 
@@ -144,6 +163,23 @@ int main(void)
 			// - user related -----------------------------------------
 			serialEvent();
 			measure();
+			/*
+			if (hm.cc.detectBurst())
+			{
+				if (brCnt == 0)
+				{
+					brTimer.set(50);
+					brCnt++;
+				}
+				else if (brCnt == 1 && brTimer.done())
+				{
+					brCnt = 0;
+					dbg << "burst detected" << _TIME << '\n'; _delay_ms(20);
+				}
+			}
+			else if (brCnt == 1 && brTimer.done())
+				brCnt = 0;
+			*/
     }
 }
 
