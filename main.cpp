@@ -13,7 +13,7 @@
 #include "dht.h"
 #include "OneWire.h"
 
-#define SER_DBG
+//#define SER_DBG
 
 #define DHT_PWR		9																		// power for DHT22
 #define DHT_PIN		6																		// this pin DHT22 is connected to
@@ -21,7 +21,7 @@
 
 dht DHT;
 OneWire OW(OW_PIN);
-waitTimer thTimer, brTimer;
+waitTimer thTimer;
 int16_t celsius;
 
 void serialEvent();
@@ -47,10 +47,10 @@ void setup() {
 	// enable only what is really needed
 
 	#ifdef SER_DBG																			// some debug
-	dbgStart();																				// serial setup
-	dbg << F("HM_LC_SW1_BA_PCB\n");
-	dbg << F(LIB_VERSION_STRING);
-	_delay_ms (50);																			// ...and some information
+		dbgStart();																			// serial setup
+		dbg << F("HM_LC_SW1_BA_PCB\n");
+		dbg << F(LIB_VERSION_STRING);
+		_delay_ms (10);																		// ...and some information
 	#endif
 	
 	// - AskSin related ---------------------------------------
@@ -59,7 +59,7 @@ void setup() {
 
 	// - user related -----------------------------------------
 	#ifdef SER_DBG
-	dbg << F("HMID: ") << _HEX(HMID,3) << F(", MAID: ") << _HEX(MAID,3) << F("\n\n");		// some debug
+		dbg << F("HMID: ") << _HEX(HMID,3) << F(", MAID: ") << _HEX(MAID,3) << F("\n\n");	// some debug
 	#endif
 }
 
@@ -71,7 +71,7 @@ void initTH1() {																			// init the sensor
 	pinMode(OW_PIN, INPUT_PULLUP);
 	
 	#ifdef SER_DBG
-	dbg << "init th1\n";
+		dbg << "init th1\n";
 	#endif
 }
 
@@ -79,14 +79,14 @@ void measureTH1(THSensor::s_meas *ptr) {
 	int16_t t;
 	
 	#ifdef SER_DBG
-	dbg << "msTH1 DS-t: " << celsius << ' ' << _TIME << '\n';
+		dbg << "msTH1 DS-t: " << celsius << ' ' << _TIME << '\n';
 	#endif
 	t = celsius / 10;
 	((uint8_t *)&(ptr->temp))[0] = ((t >> 8) & 0x7F) | (hm.bt.getStatus() << 7);
 	((uint8_t *)&(ptr->temp))[1] = t & 0xFF;
 	
 	#ifdef SER_DBG
-	dbg << "msTH1 t: " << DHT.temperature << ", h: " << DHT.humidity << ' ' << _TIME << '\n'; _delay_ms(10);
+		dbg << "msTH1 t: " << DHT.temperature << ", h: " << DHT.humidity << ' ' << _TIME << '\n'; _delay_ms(10);
 	#endif
 	ptr->hum = DHT.humidity / 10;
 	t = hm.bt.getVolts();
@@ -110,7 +110,7 @@ void measure() {
 		digitalWrite(DHT_PWR, 1);
 		state = mPwrOn;
 		#ifdef SER_DBG
-		//dbg << "power on Sensor" << ' ' << _TIME << '\n';
+			//dbg << "power on Sensor" << ' ' << _TIME << '\n';
 		#endif
 	}
 	else if (state == mPwrOn) {																// now start measurement on DS18B20 and wait another second
@@ -119,14 +119,14 @@ void measure() {
 		OW.skip();
 		OW.write(0x44);																		// start conversion
 		#ifdef SER_DBG
-		//dbg << "rc: " << rc << _TIME << '\n';
+			//dbg << "rc: " << rc << _TIME << '\n';
 		#endif
 		state = mStartDS;
 	}
 	else if (state == mStartDS)	{
 		DHT.read22(DHT_PIN);																// read DHT22
 		#ifdef SER_DBG
-		dbg << "t: " << DHT.temperature << ", h: " << DHT.humidity << ' ' << _TIME << '\n';
+			dbg << "t: " << DHT.temperature << ", h: " << DHT.humidity << ' ' << _TIME << '\n';
 		#endif
 		
 		OW.reset();																			// and read result from DS18B20
@@ -135,12 +135,13 @@ void measure() {
 		celsius = ((uint32_t)(OW.read() | (OW.read() << 8)) * 100) >> 4;					// we need only first two bytes from scratchpad
 	
 		#ifdef SER_DBG
-		dbg << "DS-t: " << celsius << ' ' << _TIME << '\n'; _delay_ms(10);
+			dbg << "DS-t: " << celsius << ' ' << _TIME << '\n';
 		#endif
 
 		digitalWrite(DHT_PWR, 0);															// power off DHT22
 		#ifdef SER_DBG
-		//dbg << "power off Sensor" << ' ' << _TIME << '\n';
+			//dbg << "power off Sensor" << ' ' << _TIME << '\n';
+			_delay_ms(10);
 		#endif
 		state = mInit;
 	}
@@ -151,8 +152,6 @@ int main(void)
 {
 	// Initialize all functions and pins
 	setup();
-	int i = 0;
-	//static uint8_t brCnt = 0;
 	
     /* Replace with your application code */
     while (1) 
@@ -163,23 +162,6 @@ int main(void)
 			// - user related -----------------------------------------
 			serialEvent();
 			measure();
-			/*
-			if (hm.cc.detectBurst())
-			{
-				if (brCnt == 0)
-				{
-					brTimer.set(50);
-					brCnt++;
-				}
-				else if (brCnt == 1 && brTimer.done())
-				{
-					brCnt = 0;
-					dbg << "burst detected" << _TIME << '\n'; _delay_ms(20);
-				}
-			}
-			else if (brCnt == 1 && brTimer.done())
-				brCnt = 0;
-			*/
     }
 }
 
