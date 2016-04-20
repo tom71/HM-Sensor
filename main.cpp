@@ -12,6 +12,7 @@
 #include "register.h"																		// configuration sheet
 #include "dht.h"
 #include "OneWire.h"
+#include <avr/wdt.h>
 
 //#define SER_DBG
 
@@ -32,6 +33,13 @@ void setup() {
 
 	// - Hardware setup ---------------------------------------
 	// - everything off ---------------------------------------
+	
+	wdt_disable();
+	// clear WDRF to avoid endless resets after WDT reset
+	MCUSR &= ~(1<<WDRF);
+	// stop all WDT activities
+	WDTCSR |= (1<<WDCE) | (1<<WDE);
+	WDTCSR = 0x00;
 
 	EIMSK = 0;																				// disable external interrupts
 	ADCSRA = 0;																				// ADC off
