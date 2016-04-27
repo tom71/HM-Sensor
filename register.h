@@ -15,12 +15,6 @@
 	extern void initTH1();
 	extern void measureTH1(THSensor::s_meas *);
 
-//- eeprom defaults table ------------------------------------------------------------------------------------------------
-//uint16_t EEMEM eMagicByte;
-//uint8_t  EEMEM eHMID[3]  = {0x58,0x23,0xff,};
-//uint8_t  EEMEM eHMSR[10] = {'X','M','S','1','2','3','4','5','6','7',};
-//uint8_t  EEMEM eHMKEY[16] = {0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08,0x09,0x0a,0x0b,0x0c,0x0d,0x0e,0x0f,0x10,};
-
 	/*
 	 * HMID, Serial number, HM-Default-Key, Key-Index
 	 */
@@ -30,11 +24,6 @@
 		/* Default-Key */     HM_DEVICE_AES_KEY,
 		/* Key-Index */       HM_DEVICE_AES_KEY_INDEX,
 	};
-
-	// if HMID and Serial are not set, then eeprom ones will be used
-	//uint8_t HMID[3] = {0x58,0x23,0xff,};
-	//uint8_t HMSR[10] = {'X','M','S','1','2','3','4','5','6','7',};          // XMS1234567
-	//uint8_t HMKEY[16] = {0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08,0x09,0x0a,0x0b,0x0c,0x0d,0x0e,0x0f,0x10,};
 
 	/*
 	 * Settings of HM device
@@ -70,10 +59,8 @@
 	 */
 	const uint8_t cnlAddr[] PROGMEM = {
 		// List0-Register
-		//0x02,0x0a,0x0b,0x0c,0x12,0x18,
 		0x01,0x02,0x0a,0x0b,0x0c,
 		// List3-Register
-		//0x02,0x03,0x04,0x05,0x06,0x07,0x08,0x09,0x0a,0x0b,0x0c,0x82,0x83,0x84,0x85,0x86,0x87,0x88,0x89,0x8a,0x8b,0x8c,
 		0x01,
 	};  // 6 byte
 
@@ -83,9 +70,6 @@
 	*/
 	EE::s_cnlTbl cnlTbl[] = {
 		// cnl, lst, sIdx,  sLen, pAddr,  hidden
-		//{ 0, 0, 0x00,  6, 0x001f, 0, },
-		//{ 1, 1, 0x00,  0, 0x0000, 0, },
-		//{ 1, 3, 0x06, 22, 0x0025, 0, },
 		{ 0, 0, 0x00,  5, 0x001f, 0, },
 		{ 1, 4, 0x05,  1, 0x0024, 0, },		// 1 reg * 6 peers = 6 byte
 	};  // 14 byte
@@ -133,10 +117,6 @@
 		hm.bt.set(220, 900000);                                             // set battery check, internal, 2.7 reference, measurement each 1/4 hour
 		//hm.pw.setMode(POWER_MODE_NO_SLEEP);                                 // set power management mode
 		hm.pw.setMode(POWER_MODE_WAKEUP_ONRADIO);                           // set power management mode
-
-		// register user modules
-		//cmSwitch[0].regInHM(1, 3, &hm);                                    // register user module
-		//cmSwitch[0].config(&initRly, &switchRly);                          // configure user module
 
 	    thsens.regInHM(1, 4, &hm);											// register sensor module on channel 1, with a list4 and introduce asksin instance
 	    thsens.config(&initTH1, &measureTH1);								// configure the user class and handover addresses to respective functions and variables

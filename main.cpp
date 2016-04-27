@@ -52,12 +52,17 @@ void setup() {
 	power_timer0_enable();
 	power_spi_enable();																		// enable only needed functions
 
+	// Soll: 1kHz - 8A=994Hz, 8B=998,4Hz, 8C=1001,6Hz, 8E=1010Hz
+	uint8_t clk_corr=0x8B;
+	OSCCAL = clk_corr;
+
 	// enable only what is really needed
 
 	#ifdef SER_DBG																			// some debug
 		dbgStart();																			// serial setup
 		dbg << F("HM_LC_SW1_BA_PCB\n");
 		dbg << F(LIB_VERSION_STRING);
+		dbg << F("clk_corr=") << _HEXB(clk_corr) << F("\n");
 		_delay_ms (10);																		// ...and some information
 	#endif
 	
@@ -68,6 +73,17 @@ void setup() {
 	// - user related -----------------------------------------
 	#ifdef SER_DBG
 		dbg << F("HMID: ") << _HEX(HMID,3) << F(", MAID: ") << _HEX(MAID,3) << F("\n\n");	// some debug
+	#endif
+
+	//#define CALIBRATE_CPU
+	#ifdef CALIBRATE_CPU
+		while (1)
+		{
+			setPinHigh(LED_RED_PORT, LED_RED_PIN);
+			_delay_us(500);
+			setPinLow(LED_RED_PORT, LED_RED_PIN);
+			_delay_us(500);
+		}
 	#endif
 }
 
@@ -110,7 +126,7 @@ void measure() {
 		return;
 		
 	if (state == mInit) {																	// wait some time till next measurement
-		thTimer.set(28000);
+		thTimer.set(88000);
 		state = mWait;
 	}
 	else if (state == mWait) {																// power on sensor and wait 1 sec
