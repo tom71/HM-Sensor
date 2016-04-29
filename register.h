@@ -113,14 +113,13 @@
 		hm.confButton.config(1, CONFIG_KEY_PCIE, CONFIG_KEY_INT);           // configure the config button, mode, pci byte and pci bit
 		hm.ld.init(2, &hm);                                                 // set the led
 		hm.ld.set(welcome);                                                 // show something
-		//hm.bt.set(30, 3600000);                                             // set battery check, internal, 2.7 reference, measurement each hour
-		hm.bt.set(220, 900000);                                             // set battery check, internal, 2.7 reference, measurement each 1/4 hour
+		hm.bt.set(240, 3600000);                                            // set battery check, internal, 2.7 reference, measurement each hour
 		//hm.pw.setMode(POWER_MODE_NO_SLEEP);                                 // set power management mode
 		hm.pw.setMode(POWER_MODE_WAKEUP_ONRADIO);                           // set power management mode
 
 	    thsens.regInHM(1, 4, &hm);											// register sensor module on channel 1, with a list4 and introduce asksin instance
 	    thsens.config(&initTH1, &measureTH1);								// configure the user class and handover addresses to respective functions and variables
-	    thsens.timing(0, 0, 0);												// mode 0 transmit based on timing or 1 on level change; level change value; while in mode 1 timing value will stay as minimum delay on level change
+	    thsens.timing();													// unused here
 	}
 
 	/**

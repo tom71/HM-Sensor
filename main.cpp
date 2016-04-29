@@ -14,7 +14,7 @@
 #include "OneWire.h"
 #include <avr/wdt.h>
 
-//#define SER_DBG
+#define SER_DBG
 
 #define DHT_PWR		9																		// power for DHT22
 #define DHT_PIN		6																		// this pin DHT22 is connected to
@@ -60,9 +60,8 @@ void setup() {
 
 	#ifdef SER_DBG																			// some debug
 		dbgStart();																			// serial setup
-		dbg << F("HM_LC_SW1_BA_PCB\n");
+		dbg << F("HB_UW_Sen_TH_Pn\n");
 		dbg << F(LIB_VERSION_STRING);
-		dbg << F("clk_corr=") << _HEXB(clk_corr) << F("\n");
 		_delay_ms (10);																		// ...and some information
 	#endif
 	
@@ -73,17 +72,6 @@ void setup() {
 	// - user related -----------------------------------------
 	#ifdef SER_DBG
 		dbg << F("HMID: ") << _HEX(HMID,3) << F(", MAID: ") << _HEX(MAID,3) << F("\n\n");	// some debug
-	#endif
-
-	//#define CALIBRATE_CPU
-	#ifdef CALIBRATE_CPU
-		while (1)
-		{
-			setPinHigh(LED_RED_PORT, LED_RED_PIN);
-			_delay_us(500);
-			setPinLow(LED_RED_PORT, LED_RED_PIN);
-			_delay_us(500);
-		}
 	#endif
 }
 
@@ -103,14 +91,14 @@ void measureTH1(THSensor::s_meas *ptr) {
 	int16_t t;
 	
 	#ifdef SER_DBG
-		dbg << "msTH1 DS-t: " << celsius << ' ' << _TIME << '\n';
+		//dbg << "msTH1 DS-t: " << celsius << ' ' << _TIME << '\n';
 	#endif
 	t = celsius / 10;
 	((uint8_t *)&(ptr->temp))[0] = ((t >> 8) & 0x7F) | (hm.bt.getStatus() << 7);
 	((uint8_t *)&(ptr->temp))[1] = t & 0xFF;
 	
 	#ifdef SER_DBG
-		dbg << "msTH1 t: " << DHT.temperature << ", h: " << DHT.humidity << ' ' << _TIME << '\n'; _delay_ms(10);
+		//dbg << "msTH1 t: " << DHT.temperature << ", h: " << DHT.humidity << ' ' << _TIME << '\n'; _delay_ms(10);
 	#endif
 	ptr->hum = DHT.humidity / 10;
 	t = hm.bt.getVolts();
@@ -139,8 +127,8 @@ void measure() {
 	}
 	else if (state == mPwrOn) {																// now start measurement on DS18B20 and wait another second
 		thTimer.set(1000);
-		uint8_t rc = OW.reset();
-		OW.skip();
+		uint8_t rc = OW.reset();															// attention - OW device get ready to communicate!
+		OW.skip();																			// skip rom selection - we have only one device attached
 		OW.write(0x44);																		// start conversion
 		#ifdef SER_DBG
 			//dbg << "rc: " << rc << _TIME << '\n';
@@ -153,9 +141,9 @@ void measure() {
 			dbg << "t: " << DHT.temperature << ", h: " << DHT.humidity << ' ' << _TIME << '\n';
 		#endif
 		
-		OW.reset();																			// and read result from DS18B20
-		OW.skip();
-		OW.write(0xBE);																		// read scratchpad
+		OW.reset();																			// attention - get ready to read result from DS18B20
+		OW.skip();																			// no rom selection
+		OW.write(0xBE);																		// read temp from scratchpad
 		celsius = ((uint32_t)(OW.read() | (OW.read() << 8)) * 100) >> 4;					// we need only first two bytes from scratchpad
 	
 		#ifdef SER_DBG
