@@ -42,16 +42,16 @@
 		/* firmwareVersion 1 byte */  0x10,
 		/* modelID         2 byte */  0xF2,0x01,
 		/* subTypeID       1 byte */  0x70,
-		/* deviceInfo      3 byte */  0x01, 0x01, 0x00,
+		/* deviceInfo      3 byte */  0x11, 0x01, 0x00,
 	};
 
 	/*
 	 * Register definitions
-	 * The values are adresses in relation to the start adress defines in cnlTbl
+	 * The values are addresses in relation to the start address defines in cnlTbl
 	 * Register values can found in related Device-XML-File.
 
-	 * Spechial register list 0: 0x0A, 0x0B, 0x0C
-	 * Spechial register list 1: 0x08
+	 * Special register list 0: 0x0A, 0x0B, 0x0C
+	 * Special register list 1: 0x08
 	 *
 	 * @See Defines.h
 	 *
@@ -59,10 +59,25 @@
 	 */
 	const uint8_t cnlAddr[] PROGMEM = {
 		// List0-Register
-		0x01,0x02,0x0a,0x0b,0x0c,
-		// List3-Register
-		0x01,
+		0x01,0x05,0x0a,0x0b,0x0c,0x12,0x14,
+		// List4-Register
+		0x01,0x02,
 	};  // 6 byte
+	// List 0: 0x01, 0x05, 0x0A, 0x0B, 0x0C, 0x12, 0x14, 0x24, 0x25
+	//uint8_t burstRx;         // 0x01,             startBit:0, bits:8
+	//uint8_t             :6;  // 0x05              startBit:0, bits:6
+	//uint8_t ledMode     :2;  // 0x05,             startBit:6, bits:2
+	//uint8_t pairCentral[3];  // 0x0A, 0x0B, 0x0C, startBit:0, bits:8 (3 mal)
+	//uint8_t lowBatLimit;     // 0x12,             startBit:0, bits:8
+	//uint8_t transmDevTryMax; // 0x14,             startBit:0, bits:8
+	//uint8_t altitude[2];     // 0x24, 0x25        startBit:0, bits:8 - not used here
+
+	// List 4: 0x01,0x02,
+	//uint8_t  peerNeedsBurst:1; // 0x01, s:0, e:1
+	//uint8_t  useDHTTemp    :1; // 0x01, s:1, e:1
+	//uint8_t                :6; //
+	//uint8_t  tempCorr          // 0x02, max +/- 12,7°C (1/10°C)
+
 
 	/*
 	* Channel - List translation table
@@ -70,8 +85,8 @@
 	*/
 	EE::s_cnlTbl cnlTbl[] = {
 		// cnl, lst, sIdx,  sLen, pAddr,  hidden
-		{ 0, 0, 0x00,  5, 0x001f, 0, },
-		{ 1, 4, 0x05,  1, 0x0024, 0, },		// 1 reg * 6 peers = 6 byte
+		{ 0, 0, 0x00,  7, 0x001f, 0, },
+		{ 1, 4, 0x07,  2, 0x0026, 0, },		// 2 reg * 8 peers = 16 byte
 	};  // 14 byte
 
 	/*
@@ -80,7 +95,7 @@
 	*/
 	EE::s_peerTbl peerTbl[] = {
 		// cnl, peerMax, pAddr;
-		{ 1, 6, 0x002a, },					// 6 * 4 = 24 byte
+		{ 1, 6, 0x0036, },					// 8 * 4 = 32 byte
 	};	// 4 Byte
 
 	/*
@@ -119,7 +134,6 @@
 
 	    thsens.regInHM(1, 4, &hm);											// register sensor module on channel 1, with a list4 and introduce asksin instance
 	    thsens.config(&initTH1, &measureTH1);								// configure the user class and handover addresses to respective functions and variables
-	    thsens.timing();													// unused here
 	}
 
 	/**
