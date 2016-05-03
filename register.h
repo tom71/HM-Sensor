@@ -42,7 +42,7 @@
 		/* firmwareVersion 1 byte */  0x10,
 		/* modelID         2 byte */  0xF2,0x01,
 		/* subTypeID       1 byte */  0x70,
-		/* deviceInfo      3 byte */  0x11, 0x01, 0x00,
+		/* deviceInfo      3 byte */  0x01, 0x01, 0x00,
 	};
 
 	/*
