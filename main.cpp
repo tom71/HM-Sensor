@@ -34,10 +34,8 @@ void setup() {
 	// - Hardware setup ---------------------------------------
 	// - everything off ---------------------------------------
 	
-	wdt_disable();
-	// clear WDRF to avoid endless resets after WDT reset
-	MCUSR &= ~(1<<WDRF);
-	// stop all WDT activities
+	wdt_disable();																			// clear WDRF to avoid endless resets after WDT reset
+	MCUSR &= ~(1<<WDRF);																	// stop all WDT activities
 	WDTCSR |= (1<<WDCE) | (1<<WDE);
 	WDTCSR = 0x00;
 
@@ -52,7 +50,11 @@ void setup() {
 	power_timer0_enable();
 	power_spi_enable();																		// enable only needed functions
 
-	// Soll: 1kHz - 8A=994Hz, 8B=998,4Hz, 8C=1001,6Hz, 8E=1010Hz
+	// Attention: your controller my have other factory calibration !!
+	// If you are unsure about the internal RC-frequency of your chip then comment out setting OSCCAL -
+	// use factory default instead!
+	// my chip: 1kHz - 8A=994Hz, 8B=998,4Hz, 8C=1001,6Hz, 8E=1010Hz
+	// frequency measured with help of millis-ISR (toggling LED port and measuring frequency on it)
 	uint8_t clk_corr=0x8B;
 	OSCCAL = clk_corr;
 
@@ -87,25 +89,31 @@ void initTH1() {																			// init the sensor
 	#endif
 }
 
+// this is called when HM wants to send measured values to peers or master
+// due to asynchronous measurement we simply can take the values very quick from variables
 void measureTH1(THSensor::s_meas *ptr) {
 	int16_t t;
 	
 	#ifdef SER_DBG
 		//dbg << "msTH1 DS-t: " << celsius << ' ' << _TIME << '\n';
 	#endif
+	// take temp value from DS18B20
 	t = celsius / 10;
-	((uint8_t *)&(ptr->temp))[0] = ((t >> 8) & 0x7F) | (hm.bt.getStatus() << 7);
+	((uint8_t *)&(ptr->temp))[0] = ((t >> 8) & 0x7F);										// battery status is added later
 	((uint8_t *)&(ptr->temp))[1] = t & 0xFF;
 	
 	#ifdef SER_DBG
 		//dbg << "msTH1 t: " << DHT.temperature << ", h: " << DHT.humidity << ' ' << _TIME << '\n'; _delay_ms(10);
 	#endif
+	// take humidity value from DHT22
 	ptr->hum = DHT.humidity / 10;
+	// fetch battery voltage
 	t = hm.bt.getVolts();
 	((uint8_t *)&(ptr->bat))[0] = t >> 8;
 	((uint8_t *)&(ptr->bat))[1] = t & 0xFF;
 }
 
+// this is called regularly - real measurement is done here
 void measure() {
 	enum mState {mInit, mWait, mPwrOn, mStartDS};
 	static mState state = mWait;
@@ -114,12 +122,12 @@ void measure() {
 		return;
 		
 	if (state == mInit) {																	// wait some time till next measurement
-		thTimer.set(88000);
+		thTimer.set(88000);																	// measurement every 90 secs
 		state = mWait;
 	}
 	else if (state == mWait) {																// power on sensor and wait 1 sec
 		thTimer.set(1000);
-		digitalWrite(DHT_PWR, 1);
+		digitalWrite(DHT_PWR, 1);															// power on here
 		state = mPwrOn;
 		#ifdef SER_DBG
 			//dbg << "power on Sensor" << ' ' << _TIME << '\n';
@@ -135,7 +143,7 @@ void measure() {
 		#endif
 		state = mStartDS;
 	}
-	else if (state == mStartDS)	{
+	else if (state == mStartDS)	{															// get results here and switch off sensor
 		DHT.read22(DHT_PIN);																// read DHT22
 		#ifdef SER_DBG
 			dbg << "t: " << DHT.temperature << ", h: " << DHT.humidity << ' ' << _TIME << '\n';
@@ -169,7 +177,7 @@ int main(void)
     while (1) 
     {
 			// - AskSin related ---------------------------------------
-			hm.poll();																				// poll the homematic main loop
+			hm.poll();																		// poll the homematic main loop
 
 			// - user related -----------------------------------------
 			serialEvent();
