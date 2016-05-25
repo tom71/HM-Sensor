@@ -125,8 +125,9 @@
 		*/
 
 		// init the homematic framework
-		hm.confButton.config(1, CONFIG_KEY_PCIE, CONFIG_KEY_INT);           // configure the config button, mode, pci byte and pci bit
-		hm.ld.init(2, &hm);                                                 // set the led
+		//hm.confButton.config(1, CONFIG_KEY_PCIE, CONFIG_KEY_INT);           // configure the config button, mode, pci byte and pci bit
+		hm.confButton.config(1);											// configure the config button mode
+		//hm.ld.init(2, &hm);                                                 // set the led
 		hm.ld.set(welcome);                                                 // show something
 		hm.bt.set(240, 3600000);                                            // set battery check, internal, 2.7 reference, measurement each hour
 		//hm.pw.setMode(POWER_MODE_NO_SLEEP);                                 // set power management mode
