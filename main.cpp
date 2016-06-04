@@ -55,8 +55,8 @@ void setup() {
 	// use factory default instead!
 	// my chip: 1kHz - 8A=994Hz, 8B=998,4Hz, 8C=1001,6Hz, 8E=1010Hz
 	// frequency measured with help of millis-ISR (toggling LED port and measuring frequency on it)
-	uint8_t clk_corr=0x8B;
-	OSCCAL = clk_corr;
+	//uint8_t clk_corr=0x8B;
+	//OSCCAL = clk_corr;
 
 	// enable only what is really needed
 
