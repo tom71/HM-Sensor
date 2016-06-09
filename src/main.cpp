@@ -186,9 +186,9 @@ void measure() {
 		for (i = 0; i < 4; i++) {
 			OW.select(addr[i]);
 			OW.write(0xBE);         // Read Scratchpad
-			celsius[0] = ((uint32_t) (OW.read() | (OW.read() << 8)) * 100) >> 4;// we need only first two bytes from scratchpad
+			celsius[i] = ((uint32_t) (OW.read() | (OW.read() << 8)) * 100) >> 4;// we need only first two bytes from scratchpad
 			#ifdef SER_DBG
-				dbg << "OW-t: " << celsius[0] << ' ' << _TIME << '\n';
+				dbg << "OW-t: " << celsius[i] << ' ' << _TIME << '\n';
 			#endif
 		}
 
