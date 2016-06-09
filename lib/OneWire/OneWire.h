@@ -21,9 +21,8 @@
 // or a small but slow algorithm.
 
 // you can exclude onewire_search by defining that to 0
-#ifndef ONEWIRE_SEARCH
-#define ONEWIRE_SEARCH 0
-#endif
+#define ONEWIRE_SEARCH 1
+
 
 // You can exclude CRC checks altogether by defining this to 0
 #ifndef ONEWIRE_CRC
