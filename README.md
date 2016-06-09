@@ -1,6 +1,15 @@
 # HM-Sensor
-Nachbau des "Universalsensors", allerdings mit anderen Sensoren.
+Nachbau des "Universalsensors", allerdings mit DS18B20 (ein - vier).
 
-Muß zusammen mit dem dev-Branch meines Forks der NewAskSin-Library compiliert und gelinkt werden.
+Muss zusammen mit dem dev-Branch meines Forks der NewAskSin-Library compiliert und gelinkt werden.
 
-Entwicklungsumgebung: Atmel Studio 7.0
+### Entwicklungsumgebung
+* Eclipse C/C++
+* platformio 
+<pre><code>platformio init --ide eclipse --board 328p8m 
+platformio run</code></pre>
+
+
+
+
+
