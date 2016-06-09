@@ -148,7 +148,7 @@ void measure() {
 			OW.search(addr[i]);
 			#ifdef SER_DBG
 			for (j = 0; i < 8; i++) {
-				dbg << "found Sensor" << addr[i][j] << ' ' << _TIME << '\n';
+				dbg << "found Sensor: " << addr[i][j] << ' ' << _TIME << '\n';
 			}
 			#endif
 
@@ -170,7 +170,7 @@ void measure() {
 			OW.select(addr[i]);
 			#ifdef SER_DBG
 				for (j = 0; i < 8; i++) {
-					dbg << "select Sensor" << addr[i][j] << ' ' << _TIME << '\n';
+					dbg << "select Sensor: " << addr[i][j] << ' ' << _TIME << '\n';
 				}
 			#endif
 		}
