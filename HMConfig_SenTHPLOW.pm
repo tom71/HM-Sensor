@@ -4,16 +4,13 @@ use strict;
 use warnings;
 
 # device definition
-# $HMConfig::culHmModel{'F101'} = {name => 'HB-UW-Sen-THPL-I', st => 'THPLSensor', cyc => '00:10', rxt => 'l:w:c:f', lst  => 'p',   chn  => '',};
-$HMConfig::culHmModel{'F101'} = {name => 'HB-UW-Sen-THPL-I', st => 'THPLSensor', cyc => '00:10', rxt => 'w:c', lst  => 'p',   chn  => '',};
-$HMConfig::culHmModel{'F102'} = {name => 'HB-UW-Sen-THPL-O', st => 'THPLSensor', cyc => '00:10', rxt => 'l:w:c:f', lst  => 'p',   chn  => '',};
-$HMConfig::culHmModel{'F201'} = {name => 'HB-UW-Sen-TH-OW', st => 'THPnSensor', cyc => '00:10', rxt => 'w:c', lst  => 'p',   chn  => '',};
+$HMConfig::culHmModel{'F201'} = {name => 'HB-UW-Sen-TH-OW', st => 'THPLOWSensor', cyc => '00:10', rxt => 'w:c', lst  => 'p',   chn  => '',};
 
 $HMConfig::culHmRegDefine{'lowBatLimitTHPL'} = {a=>18.0,s=>1.0,l=>0,min=>1.0 ,max=>5    ,c=>'',f=>10,u=>'V',  d=>0,t=>'Low batterie limit, step 0.1 V.'};
 $HMConfig::culHmRegDefine{'altitude'}        = {a=>36.0,s=>2.0,l=>0,min=>-500,max=>10000,c=>'',f=>'',u=>'m'  ,d=>0,t=>'Altitude for calculate air pressure at see level in meter.'};
 
 # Register model mapping
-$HMConfig::culHmRegModel{'HB-UW-Sen-THPL-I'} = {
+$HMConfig::culHmRegModel{'HB-UW-Sen-TH-OW'} = {
 	'burstRx'         => 1,
 	'lowBatLimitTHPL' => 1,
 	'ledMode'         => 1,
@@ -21,19 +18,9 @@ $HMConfig::culHmRegModel{'HB-UW-Sen-THPL-I'} = {
 	'altitude'        => 1
 };
 
-$HMConfig::culHmRegModel{'HB-UW-Sen-THPL-O'} = $HMConfig::culHmRegModel{'HB-UW-Sen-THPL-I'};
-$HMConfig::culHmRegModel{'HB-UW-Sen-TH-OW'}  = $HMConfig::culHmRegModel{'HB-UW-Sen-THPL-I'};
 
 # subtype channel mapping
-$HMConfig::culHmSubTypeSets{'THPLSensor'}    = {
-	'peerChan'       => '0 <actChn> ... single [set|unset] [actor|remote|both]',
-	'fwUpdate'       => '<filename> <bootTime> ...',
-	'getSerial'      => '',
-	'getVersion'     => '',
-	'statusRequest'  => '',
-	'burstXmit'      => ''
-};
-$HMConfig::culHmSubTypeSets{'THPnSensor'}    = {
+$HMConfig::culHmSubTypeSets{'THPLOWSensor'}    = {
 	'peerChan'       => '0 <actChn> ... single [set|unset] [actor|remote|both]',
 	'fwUpdate'       => '<filename> <bootTime> ...',
 	'getSerial'      => '',
