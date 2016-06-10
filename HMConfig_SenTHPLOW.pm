@@ -43,12 +43,12 @@ sub CUL_HM_ParseTHPLOWSensor(@){
 		my ($temp1, $temp2, $temp3, $temp4, $batVoltage) = map{hex($_)} unpack ('A4A4A4A4A4', $msgData);
 
 		# temperature
-		my $temperature =  $temp1 & 0x7fff;
-		$temperature = ($temperature &0x4000) ? $temperature - 0x8000 : $temperature; 
-		$temperature = sprintf('%0.1f', $temperature / 10);
+		my $temperature1 =  $temp1 & 0x7fff;
+		$temperature1 = ($temperature1 &0x4000) ? $temperature1 - 0x8000 : $temperature1; 
+		$temperature1 = sprintf('%0.1f', $temperature1 / 10);
 
-		my $stateMsg = 'state:T1: ' . $temperature;
-		push (@events, [$shash, 1, 'temperature:' . $temperature]);
+		my $stateMsg = 'state:T1: ' . $temperature1;
+		push (@events, [$shash, 1, 'temperature1:' . $temperature1]);
 
 		# battery state
 		push (@events, [$shash, 1, 'battery:' . ($temp1 & 0x8000 ? 'low' : 'ok')]);

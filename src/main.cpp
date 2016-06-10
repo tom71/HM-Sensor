@@ -111,15 +111,15 @@ void measureTH1(THSensor::s_meas *ptr) {
 	((uint8_t *) &(ptr->temp1))[1] = t & 0xFF;
 
 	t = sensor[1]->celsius / 10;
-	((uint8_t *) &(ptr->temp2))[0] = ((t >> 8) & 0x7F);
+	((uint8_t *) &(ptr->temp2))[0] = ((t >> 8));
 	((uint8_t *) &(ptr->temp2))[1] = t & 0xFF;
 
 	t = sensor[2]->celsius / 10;
-	((uint8_t *) &(ptr->temp3))[0] = ((t >> 8) & 0x7F);
+	((uint8_t *) &(ptr->temp3))[0] = ((t >> 8));
 	((uint8_t *) &(ptr->temp3))[1] = t & 0xFF;
 
 	 t = sensor[3]->celsius / 10;
-	 ((uint8_t *) &(ptr->temp4))[0] = ((t >> 8) & 0x7F);
+	 ((uint8_t *) &(ptr->temp4))[0] = ((t >> 8));
 	 ((uint8_t *) &(ptr->temp4))[1] = t & 0xFF;
 
 
