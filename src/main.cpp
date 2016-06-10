@@ -18,24 +18,26 @@
 #define OW_PWR		9																		// power for DS18B20
 #define OW_PIN		5																		// this pin DS18B20 is connected to
 
+#define SENSOR_COUNT 4
+
 OneWire OW(OW_PIN);
 waitTimer thTimer;
 
 byte i;
-int sensorCount = 4;
+
 
 typedef struct {
 	int16_t celsius;
 	byte addr[8];
 } Sensor;
 
-Sensor *sensor[sensorCount];
+Sensor *sensor[SENSOR_COUNT];
 
 void serialEvent();
 
 //- arduino functions -----------------------------------------------------------------------------------------------------
 void setup() {
-	for (i = 0; i < sensorCount; i++) {
+	for (i = 0; i < SENSOR_COUNT; i++) {
 		sensor[i] = (Sensor *) malloc(sizeof(Sensor));
 	}
 	// - Hardware setup ---------------------------------------
@@ -79,6 +81,62 @@ void setup() {
 #endif
 }
 
+void lookUpSensors() {
+
+	digitalWrite(OW_PWR, 1);
+
+	byte address[8];
+	int i = 0;
+	byte count = 0;
+	byte ok = 0, tmp = 0;
+
+	Serial.println("--Suche gestartet--");
+	while (OW.search(address)) {
+		tmp = 0;
+		//0x10 = DS18S20
+		if (address[0] == 0x10) {
+			Serial.print("Device is a DS18S20 : ");
+			tmp = 1;
+		} else {
+			//0x28 = DS18B20
+			if (address[0] == 0x28) {
+				Serial.print("Device is a DS18B20 : ");
+				tmp = 1;
+			}
+		}
+		//display the address, if tmp is ok
+		if (tmp == 1) {
+			if (OneWire::crc8(address, 7) != address[7]) {
+				Serial.println("but it doesn't have a valid CRC!");
+			} else {
+				//all is ok, store it
+				memcpy(sensor[count]->addr, address, 8);
+				//sensor[count]->addr = address;
+				count++;
+
+				for (i = 0; i < 8; i++) {
+					if (address[i] < 9) {
+						Serial.print("0");
+					}
+					Serial.print("0x");
+					Serial.print(address[i], HEX);
+					if (i < 7) {
+						Serial.print(", ");
+					}
+				}
+				Serial.println("");
+				ok = 1;
+			}
+		}								//end if tmp
+	}								//end while
+	if (ok == 0) {
+		Serial.println("Keine Sensoren gefunden");
+	}
+	Serial.println("--Suche beendet--");
+
+	digitalWrite(OW_PWR, 0);
+}
+
 //- user functions --------------------------------------------------------------------------------------------------------
 void initTH1() {											// init the sensor
 
@@ -100,7 +158,7 @@ void measureTH1(THSensor::s_meas *ptr) {
 	int16_t t;
 
 #ifdef SER_DBG
-	for (i = 0; i < sensorCount; i++) {
+	for (i = 0; i < SENSOR_COUNT; i++) {
 		dbg << "msTH1 OW-t: " << sensor[i]->celsius << ' ' << _TIME << '\n';
 	}
 #endif
@@ -135,6 +193,57 @@ void measureTH1(THSensor::s_meas *ptr) {
 	((uint8_t *) &(ptr->bat))[1] = t & 0xFF;
 }
 
+void writeTimeToScratchpad(byte* address) {
+	//reset the bus
+	OW.reset();
+	//select our sensor
+	OW.select(address);
+	//CONVERT T function call (44h) which puts the temperature into the scratchpad
+	OW.write(0x44, 1);
+	//sleep a second for the write to take place
+	delay(1000);
+}
+
+void readTimeFromScratchpad(byte* address, byte* data) {
+	//reset the bus
+	OW.reset();
+	//select our sensor
+	OW.select(address);
+	//read the scratchpad (BEh)
+	OW.write(0xBE);
+	for (byte i = 0; i < 9; i++) {
+		data[i] = OW.read();
+	}
+}
+
+float getTemperature(byte* address) {
+	int tr;
+	byte data[12];
+
+	writeTimeToScratchpad(address);
+
+	readTimeFromScratchpad(address, data);
+
+	//put in temp all the 8 bits of LSB (least significant byte)
+	tr = data[0];
+
+	//check for negative temperature
+	if (data[1] > 0x80) {
+		tr = !tr + 1; //two's complement adjustment
+		tr = tr * -1; //flip value negative.
+	}
+
+	//COUNT PER Celsius degree (10h)
+	int cpc = data[7];
+	//COUNT REMAIN (0Ch)
+	int cr = data[6];
+
+	//drop bit 0
+	tr = tr >> 1;
+
+	return tr - (float) 0.25 + (cpc - cr) / (float) cpc;
+}
+
 // this is called regularly - real measurement is done here
 void measure() {
 
@@ -159,7 +268,7 @@ void measure() {
 #endif
 	} else if (state == mPwrOn) {			// now start measurement on DS18B20
 
-		for (i = 0; i < sensorCount; i++) {
+		for (i = 0; i < SENSOR_COUNT; i++) {
 			float temp = getTemperature(sensor[i]->addr);
 			Serial.print(temp);
 			Serial.println(" Celsius");
@@ -221,108 +330,6 @@ void serialEvent() {
 #endif
 }
 
-void writeTimeToScratchpad(byte* address) {
-	//reset the bus
-	OW.reset();
-	//select our sensor
-	OW.select(address);
-	//CONVERT T function call (44h) which puts the temperature into the scratchpad
-	OW.write(0x44, 1);
-	//sleep a second for the write to take place
-	delay(1000);
-}
 
-void readTimeFromScratchpad(byte* address, byte* data) {
-	//reset the bus
-	OW.reset();
-	//select our sensor
-	OW.select(address);
-	//read the scratchpad (BEh)
-	OW.write(0xBE);
-	for (byte i = 0; i < 9; i++) {
-		data[i] = OW.read();
-	}
-}
 
-float getTemperature(byte* address) {
-	int tr;
-	byte data[12];
 
-	writeTimeToScratchpad(address);
-
-	readTimeFromScratchpad(address, data);
-
-	//put in temp all the 8 bits of LSB (least significant byte)
-	tr = data[0];
-
-	//check for negative temperature
-	if (data[1] > 0x80) {
-		tr = !tr + 1; //two's complement adjustment
-		tr = tr * -1; //flip value negative.
-	}
-
-	//COUNT PER Celsius degree (10h)
-	int cpc = data[7];
-	//COUNT REMAIN (0Ch)
-	int cr = data[6];
-
-	//drop bit 0
-	tr = tr >> 1;
-
-	return tr - (float) 0.25 + (cpc - cr) / (float) cpc;
-}
-
-void lookUpSensors() {
-
-	digitalWrite(OW_PWR, 1);
-
-	byte address[8];
-	int i = 0;
-	int count = 0;
-	byte ok = 0, tmp = 0;
-
-	Serial.println("--Suche gestartet--");
-	while (OW.search(address)) {
-		tmp = 0;
-		//0x10 = DS18S20
-		if (address[0] == 0x10) {
-			Serial.print("Device is a DS18S20 : ");
-			tmp = 1;
-		} else {
-			//0x28 = DS18B20
-			if (address[0] == 0x28) {
-				Serial.print("Device is a DS18B20 : ");
-				tmp = 1;
-			}
-		}
-		//display the address, if tmp is ok
-		if (tmp == 1) {
-			if (OneWire::crc8(address, 7) != address[7]) {
-				Serial.println("but it doesn't have a valid CRC!");
-			} else {
-				//all is ok, store it
-				sensor[count]->addr = address;
-				count++;
-
-				for (i = 0; i < 8; i++) {
-					if (address[i] < 9) {
-						Serial.print("0");
-					}
-					Serial.print("0x");
-					Serial.print(address[i], HEX);
-					if (i < 7) {
-						Serial.print(", ");
-					}
-				}
-				Serial.println("");
-				ok = 1;
-			}
-		}								//end if tmp
-	}								//end while
-	if (ok == 0) {
-		Serial.println("Keine Sensoren gefunden");
-	}
-	Serial.println("--Suche beendet--");
-
-	digitalWrite(OW_PWR, 0);
-}
