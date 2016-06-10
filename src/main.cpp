@@ -21,25 +21,22 @@
 OneWire OW(OW_PIN);
 waitTimer thTimer;
 
-
 byte i;
-byte sensorCount=3;
-
+int sensorCount = 4;
 
 typedef struct {
 	int16_t celsius;
 	byte addr[8];
 } Sensor;
 
-Sensor *sensor[4];
-
+Sensor *sensor[sensorCount];
 
 void serialEvent();
 
 //- arduino functions -----------------------------------------------------------------------------------------------------
 void setup() {
-	for(i=0; i<sensorCount;i++){
-		sensor[i] = (Sensor *)malloc(sizeof(Sensor));
+	for (i = 0; i < sensorCount; i++) {
+		sensor[i] = (Sensor *) malloc(sizeof(Sensor));
 	}
 	// - Hardware setup ---------------------------------------
 	// - everything off ---------------------------------------
@@ -88,6 +85,8 @@ void initTH1() {											// init the sensor
 	pinMode(OW_PWR, OUTPUT);
 	pinMode(OW_PIN, INPUT_PULLUP);
 
+	lookUpSensors();
+
 #ifdef SER_DBG
 	dbg << "init th1\n";
 #endif
@@ -100,12 +99,11 @@ void measureTH1(THSensor::s_meas *ptr) {
 	byte i;
 	int16_t t;
 
-	#ifdef SER_DBG
-		for(i=0; i<4; i++)
-		{
-			dbg << "msTH1 OW-t: " << sensor[i]->celsius << ' ' << _TIME << '\n';
-		}
-	#endif
+#ifdef SER_DBG
+	for (i = 0; i < sensorCount; i++) {
+		dbg << "msTH1 OW-t: " << sensor[i]->celsius << ' ' << _TIME << '\n';
+	}
+#endif
 	// take temp value from DS18B20
 
 	t = sensor[0]->celsius / 10;
@@ -120,11 +118,10 @@ void measureTH1(THSensor::s_meas *ptr) {
 	((uint8_t *) &(ptr->temp3))[0] = ((t >> 8) & 0x7F);
 	((uint8_t *) &(ptr->temp3))[1] = t & 0xFF;
 
-	/*
-	t = sensor[3]->celsius / 10;
-	((uint8_t *) &(ptr->temp4))[0] = ((t >> 8) & 0x7F);
-	((uint8_t *) &(ptr->temp4))[1] = t & 0xFF;
-	*/
+	 t = sensor[3]->celsius / 10;
+	 ((uint8_t *) &(ptr->temp4))[0] = ((t >> 8) & 0x7F);
+	 ((uint8_t *) &(ptr->temp4))[1] = t & 0xFF;
+
 
 #ifdef SER_DBG
 	//dbg << "msTH1 t: " << DHT.temperature << ", h: " << DHT.humidity << ' ' << _TIME << '\n'; _delay_ms(10);
@@ -156,58 +153,24 @@ void measure() {
 		thTimer.set(1000);
 		digitalWrite(OW_PWR, 1);								// power on here
 
-		for (i = 0; i < 4; i++) {
-			OW.search(sensor[i]->addr);
-			#ifdef SER_DBG
-
-				byte j;
-				Serial.println("Sensor address=");
-				for (j = 0; j < 8; j++) {
-					Serial.print(sensor[i]->addr[j], HEX);
-					Serial.print(" ");
-				}
-				Serial.println("");
-			#endif
-			delay(250);
-		}
-
 		state = mPwrOn;
-		#ifdef SER_DBG
-				dbg << "power on Sensor" << ' ' << _TIME << '\n';
-		#endif
-	} else if (state == mPwrOn) {// now start measurement on DS18B20
-		byte present = 0;
+#ifdef SER_DBG
+		dbg << "power on Sensor" << ' ' << _TIME << '\n';
+#endif
+	} else if (state == mPwrOn) {			// now start measurement on DS18B20
 
-		for (i = 0; i < 4; i++) {
-			OW.reset(); // attention - get ready to read result from DS18B20
-			OW.select(sensor[i]->addr);
-
-			OW.write(0x44, 1); // start conversion, with parasite power on at the end
-
-			delay(1000);     // maybe 750ms is enough, maybe not
-			// we might do a ds.depower() here, but the reset will take care of it.
-
-			present = OW.reset();
-			OW.select(sensor[i]->addr);
-			OW.write(0xBE);         // Read Scratchpad
-
-			Serial.print("P=");
-			Serial.println(present, HEX);
-
-			byte data[12];
-
-			sensor[i]->celsius = ((uint32_t) (OW.read() | (OW.read() << 8))
-					* 100) >> 4; // we need only first two bytes from scratchpad
-			#ifdef SER_DBG
-				dbg << "ms OW-t: " << sensor[i]->celsius << ' ' << _TIME << '\n';
-			#endif
+		for (i = 0; i < sensorCount; i++) {
+			float temp = getTemperature(sensor[i]->addr);
+			Serial.print(temp);
+			Serial.println(" Celsius");
+			sensor[i]->celsius = temp;
 		}
 
 		digitalWrite(OW_PWR, 0);							// power off DS18B20
-		#ifdef SER_DBG
-				dbg << "power off Sensor" << ' ' << _TIME << '\n';
-				_delay_ms(10);
-		#endif
+#ifdef SER_DBG
+		dbg << "power off Sensor" << ' ' << _TIME << '\n';
+		_delay_ms(10);
+#endif
 		state = mInit;
 	}
 }
@@ -256,4 +219,110 @@ void serialEvent() {
 		i++;
 	}
 #endif
+}
+
+void writeTimeToScratchpad(byte* address) {
+	//reset the bus
+	OW.reset();
+	//select our sensor
+	OW.select(address);
+	//CONVERT T function call (44h) which puts the temperature into the scratchpad
+	OW.write(0x44, 1);
+	//sleep a second for the write to take place
+	delay(1000);
+}
+
+void readTimeFromScratchpad(byte* address, byte* data) {
+	//reset the bus
+	OW.reset();
+	//select our sensor
+	OW.select(address);
+	//read the scratchpad (BEh)
+	OW.write(0xBE);
+	for (byte i = 0; i < 9; i++) {
+		data[i] = OW.read();
+	}
+}
+
+float getTemperature(byte* address) {
+	int tr;
+	byte data[12];
+
+	writeTimeToScratchpad(address);
+
+	readTimeFromScratchpad(address, data);
+
+	//put in temp all the 8 bits of LSB (least significant byte)
+	tr = data[0];
+
+	//check for negative temperature
+	if (data[1] > 0x80) {
+		tr = !tr + 1; //two's complement adjustment
+		tr = tr * -1; //flip value negative.
+	}
+
+	//COUNT PER Celsius degree (10h)
+	int cpc = data[7];
+	//COUNT REMAIN (0Ch)
+	int cr = data[6];
+
+	//drop bit 0
+	tr = tr >> 1;
+
+	return tr - (float) 0.25 + (cpc - cr) / (float) cpc;
+}
+
+void lookUpSensors() {
+
+	digitalWrite(OW_PWR, 1);
+
+	byte address[8];
+	int i = 0;
+	int count = 0;
+	byte ok = 0, tmp = 0;
+
+	Serial.println("--Suche gestartet--");
+	while (OW.search(address)) {
+		tmp = 0;
+		//0x10 = DS18S20
+		if (address[0] == 0x10) {
+			Serial.print("Device is a DS18S20 : ");
+			tmp = 1;
+		} else {
+			//0x28 = DS18B20
+			if (address[0] == 0x28) {
+				Serial.print("Device is a DS18B20 : ");
+				tmp = 1;
+			}
+		}
+		//display the address, if tmp is ok
+		if (tmp == 1) {
+			if (OneWire::crc8(address, 7) != address[7]) {
+				Serial.println("but it doesn't have a valid CRC!");
+			} else {
+				//all is ok, store it
+				sensor[count]->addr = address;
+				count++;
+
+				for (i = 0; i < 8; i++) {
+					if (address[i] < 9) {
+						Serial.print("0");
+					}
+					Serial.print("0x");
+					Serial.print(address[i], HEX);
+					if (i < 7) {
+						Serial.print(", ");
+					}
+				}
+				Serial.println("");
+				ok = 1;
+			}
+		}								//end if tmp
+	}								//end while
+	if (ok == 0) {
+		Serial.println("Keine Sensoren gefunden");
+	}
+	Serial.println("--Suche beendet--");
+
+	digitalWrite(OW_PWR, 0);
 }
