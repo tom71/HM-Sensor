@@ -20,13 +20,27 @@
 
 OneWire OW(OW_PIN);
 waitTimer thTimer;
-int16_t celsius[4];
+
+
+byte i;
+byte sensorCount=3;
+
+
+typedef struct {
+	int16_t celsius;
+	byte addr[8];
+} Sensor;
+
+Sensor *sensor[4];
+
 
 void serialEvent();
 
 //- arduino functions -----------------------------------------------------------------------------------------------------
 void setup() {
-
+	for(i=0; i<sensorCount;i++){
+		sensor[i] = (Sensor *)malloc(sizeof(Sensor));
+	}
 	// - Hardware setup ---------------------------------------
 	// - everything off ---------------------------------------
 
@@ -89,26 +103,28 @@ void measureTH1(THSensor::s_meas *ptr) {
 	#ifdef SER_DBG
 		for(i=0; i<4; i++)
 		{
-			dbg << "msTH1 OW-t: " << celsius[i] << ' ' << _TIME << '\n';
+			dbg << "msTH1 OW-t: " << sensor[i]->celsius << ' ' << _TIME << '\n';
 		}
 	#endif
 	// take temp value from DS18B20
 
-	t = celsius[0] / 10;
+	t = sensor[0]->celsius / 10;
 	((uint8_t *) &(ptr->temp1))[0] = ((t >> 8) & 0x7F);
 	((uint8_t *) &(ptr->temp1))[1] = t & 0xFF;
 
-	t = celsius[1] / 10;
+	t = sensor[1]->celsius / 10;
 	((uint8_t *) &(ptr->temp2))[0] = ((t >> 8) & 0x7F);
 	((uint8_t *) &(ptr->temp2))[1] = t & 0xFF;
 
-	t = celsius[2] / 10;
+	t = sensor[2]->celsius / 10;
 	((uint8_t *) &(ptr->temp3))[0] = ((t >> 8) & 0x7F);
 	((uint8_t *) &(ptr->temp3))[1] = t & 0xFF;
 
-	t = celsius[3] / 10;
+	/*
+	t = sensor[3]->celsius / 10;
 	((uint8_t *) &(ptr->temp4))[0] = ((t >> 8) & 0x7F);
 	((uint8_t *) &(ptr->temp4))[1] = t & 0xFF;
+	*/
 
 #ifdef SER_DBG
 	//dbg << "msTH1 t: " << DHT.temperature << ", h: " << DHT.humidity << ' ' << _TIME << '\n'; _delay_ms(10);
@@ -124,10 +140,6 @@ void measureTH1(THSensor::s_meas *ptr) {
 
 // this is called regularly - real measurement is done here
 void measure() {
-
-	byte addr[4][8];
-	byte i,j;
-
 
 	enum mState {
 		mInit, mWait, mPwrOn, mStartDS
@@ -145,13 +157,17 @@ void measure() {
 		digitalWrite(OW_PWR, 1);								// power on here
 
 		for (i = 0; i < 4; i++) {
-			OW.search(addr[i]);
+			OW.search(sensor[i]->addr);
 			#ifdef SER_DBG
-			for (j = 0; i < 8; i++) {
-				dbg << "found Sensor: " << addr[i][j] << ' ' << _TIME << '\n';
-			}
-			#endif
 
+				byte j;
+				Serial.println("Sensor address=");
+				for (j = 0; j < 8; j++) {
+					Serial.print(sensor[i]->addr[j], HEX);
+					Serial.print(" ");
+				}
+				Serial.println("");
+			#endif
 			delay(250);
 		}
 
@@ -159,42 +175,33 @@ void measure() {
 		#ifdef SER_DBG
 				dbg << "power on Sensor" << ' ' << _TIME << '\n';
 		#endif
-	} else if (state == mPwrOn) {// now start measurement on DS18B20 and wait another second
-		thTimer.set(1000);
-
-
-
-		OW.reset();			// attention - OW device get ready to communicate!
+	} else if (state == mPwrOn) {// now start measurement on DS18B20
+		byte present = 0;
 
 		for (i = 0; i < 4; i++) {
-			OW.select(addr[i]);
-			#ifdef SER_DBG
-				for (j = 0; i < 8; i++) {
-					dbg << "select Sensor: " << addr[i][j] << ' ' << _TIME << '\n';
-				}
-			#endif
-		}
+			OW.reset(); // attention - get ready to read result from DS18B20
+			OW.select(sensor[i]->addr);
 
-		//OW.skip();		// skip rom selection - we have only one device attached
-		OW.write(0x44,1);         // start conversion, with parasite power on at the end
-		//OW.write(0x44);										// start conversion
-		state = mStartDS;
-	} else if (state == mStartDS) {	// get results here and switch off sensor
+			OW.write(0x44, 1); // start conversion, with parasite power on at the end
 
-		OW.reset();			// attention - get ready to read result from DS18B20
+			delay(1000);     // maybe 750ms is enough, maybe not
+			// we might do a ds.depower() here, but the reset will take care of it.
 
-		for (i = 0; i < 4; i++) {
-			OW.select(addr[i]);
+			present = OW.reset();
+			OW.select(sensor[i]->addr);
 			OW.write(0xBE);         // Read Scratchpad
-			celsius[i] = ((uint32_t) (OW.read() | (OW.read() << 8)) * 100) >> 4;// we need only first two bytes from scratchpad
+
+			Serial.print("P=");
+			Serial.println(present, HEX);
+
+			byte data[12];
+
+			sensor[i]->celsius = ((uint32_t) (OW.read() | (OW.read() << 8))
+					* 100) >> 4; // we need only first two bytes from scratchpad
 			#ifdef SER_DBG
-				dbg << "OW-t: " << celsius[i] << ' ' << _TIME << '\n';
+				dbg << "ms OW-t: " << sensor[i]->celsius << ' ' << _TIME << '\n';
 			#endif
 		}
-
-		//OW.skip();											// no rom selection
-		//OW.write(0xBE);								// read temp from scratchpad
-		//celsius = ((uint32_t) (OW.read() | (OW.read() << 8)) * 100) >> 4;// we need only first two bytes from scratchpad
 
 		digitalWrite(OW_PWR, 0);							// power off DS18B20
 		#ifdef SER_DBG
