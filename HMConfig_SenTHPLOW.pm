@@ -47,7 +47,7 @@ sub CUL_HM_ParseTHPLOWSensor(@){
 		$temperature = ($temperature &0x4000) ? $temperature - 0x8000 : $temperature; 
 		$temperature = sprintf('%0.1f', $temperature / 10);
 
-		my $stateMsg = 'state:T: ' . $temperature;
+		my $stateMsg = 'state:T1: ' . $temperature;
 		push (@events, [$shash, 1, 'temperature:' . $temperature]);
 
 		# battery state
@@ -59,20 +59,26 @@ sub CUL_HM_ParseTHPLOWSensor(@){
 
 		# temp2
 		if ($temp2)                 {
-			$stateMsg .= ' T2: ' . $temp2;
-			push (@events, [$shash, 1, 'temp2:' . $temp2]);
+			my $temperature2 =  $temp2;
+			$temperature2 = sprintf('%0.1f', $temperature2 / 10);
+			$stateMsg .= ' T2: ' . $temperature2;
+			push (@events, [$shash, 1, 'temperature2:' . $temperature2]);
 		}
 		
 		# temp3
 		if ($temp3)                 {
-			$stateMsg .= ' T3: ' . $temp3;
-			push (@events, [$shash, 1, 'temp3:' . $temp3]);
+			my $temperature3 =  $temp3;
+			$temperature3 = sprintf('%0.1f', $temperature3 / 10);
+			$stateMsg .= ' T3: ' . $temperature3;
+			push (@events, [$shash, 1, 'temperature3:' . $temperature3]);
 		}
 		
 		# temp4
 		if ($temp4)                 {
-			$stateMsg .= ' T4: ' . $temp4;
-			push (@events, [$shash, 1, 'temp4:' . $temp4]);
+			my $temperature4 =  $temp4;
+			$temperature4 = sprintf('%0.1f', $temperature4 / 10);
+			$stateMsg .= ' T4: ' . $temperature4;
+			push (@events, [$shash, 1, 'temperature4:' . $temperature4]);
 		}
 		
 
