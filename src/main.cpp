@@ -33,6 +33,7 @@ typedef struct {
 Sensor *sensor[SENSOR_COUNT];
 
 void serialEvent();
+void lookUpSensors();
 
 //- arduino functions -----------------------------------------------------------------------------------------------------
 void setup() {
@@ -81,52 +82,13 @@ void setup() {
 #endif
 }
 
-void lookUpSensors() {
 
-	byte address[8];
-	byte count = 0;
-	byte ok = 0, tmp = 0;
-
-	Serial.println("--Suche gestartet--");
-	while (OW.search(address)) {
-		tmp = 0;
-		//0x10 = DS18S20
-		if (address[0] == 0x10) {
-			Serial.print("Device is a DS18S20 : ");
-			tmp = 1;
-		} else {
-			//0x28 = DS18B20
-			if (address[0] == 0x28) {
-				Serial.print("Device is a DS18B20 : ");
-				tmp = 1;
-			}
-		}
-		//display the address, if tmp is ok
-		if (tmp == 1) {
-			if (OneWire::crc8(address, 7) != address[7]) {
-				Serial.println("but it doesn't have a valid CRC!");
-			} else {
-				printAddress(address);
-				//all is ok, store it
-				memcpy(sensor[count]->addr, address, 8);
-				printAddress(sensor[count]->addr);
-				count++;
-				ok = 1;
-			}
-		}								//end if tmp
-	}								//end while
-	if (ok == 0) {
-		Serial.println("Keine Sensoren gefunden");
-	}
-	Serial.println("--Suche beendet--");
-
-}
 
 //- user functions --------------------------------------------------------------------------------------------------------
 void initTH1() {											// init the sensor
 
 	pinMode(OW_PWR, OUTPUT);
-	// pinMode(OW_PIN, INPUT_PULLUP);
+	pinMode(OW_PIN, INPUT_PULLUP);
 
 	digitalWrite(OW_PWR, 1);
 	delay(2000);
@@ -182,8 +144,6 @@ void measureTH1(THSensor::s_meas *ptr) {
 }
 
 
-
-
 // this is called regularly - real measurement is done here
 void measure() {
 
@@ -218,9 +178,9 @@ void measure() {
 			OW.reset();		// attention - get ready to read result from DS18B20
 			OW.select(sensor[i]->addr);						// no rom selection;
 			OW.write(0xBE);							// read temp from scratchpad
-			sensor[i]->celsius = ((uint32_t) (OW.read() | (OW.read() << 8))	* 100) >> 4;
-
-			Serial.print(sensor[i]->celsius);
+			int16_t celsius = ((uint32_t) (OW.read() | (OW.read() << 8))	* 100) >> 4;
+			sensor[i]->celsius = celsius;
+			Serial.print(celsius);
 			Serial.println(" Celsius:");
 		}
 
@@ -277,6 +237,46 @@ void serialEvent() {
 		i++;
 	}
 #endif
+}
+
+void lookUpSensors() {
+
+	byte address[8];
+	byte count = 0;
+	byte ok = 0, tmp = 0;
+
+	Serial.println("--Suche gestartet--");
+	while (OW.search(address)) {
+		tmp = 0;
+		//0x10 = DS18S20
+		if (address[0] == 0x10) {
+			Serial.print("Device is a DS18S20 : ");
+			tmp = 1;
+		} else {
+			//0x28 = DS18B20
+			if (address[0] == 0x28) {
+				Serial.print("Device is a DS18B20 : ");
+				tmp = 1;
+			}
+		}
+		//display the address, if tmp is ok
+		if (tmp == 1) {
+			if (OneWire::crc8(address, 7) != address[7]) {
+				Serial.println("but it doesn't have a valid CRC!");
+			} else {
+				printAddress(address);
+				//all is ok, store it
+				memcpy(sensor[count]->addr, address, 8);
+				count++;
+				ok = 1;
+			}
+		}								//end if tmp
+	}								//end while
+	if (ok == 0) {
+		Serial.println("Keine Sensoren gefunden");
+	}
+	Serial.println("--Suche beendet--");
+
 }
 
 void printAddress(byte* address) {
