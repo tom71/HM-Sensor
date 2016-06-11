@@ -23,8 +23,7 @@
 OneWire OW(OW_PIN);
 waitTimer thTimer;
 
-byte i;
-
+void printAddress(byte* address);
 
 typedef struct {
 	int16_t celsius;
@@ -37,7 +36,8 @@ void serialEvent();
 
 //- arduino functions -----------------------------------------------------------------------------------------------------
 void setup() {
-	for (i = 0; i < SENSOR_COUNT; i++) {
+
+	for (byte i = 0; i < SENSOR_COUNT; i++) {
 		sensor[i] = (Sensor *) malloc(sizeof(Sensor));
 	}
 	// - Hardware setup ---------------------------------------
@@ -83,10 +83,7 @@ void setup() {
 
 void lookUpSensors() {
 
-	digitalWrite(OW_PWR, 1);
-
 	byte address[8];
-	int i = 0;
 	byte count = 0;
 	byte ok = 0, tmp = 0;
 
@@ -109,22 +106,11 @@ void lookUpSensors() {
 			if (OneWire::crc8(address, 7) != address[7]) {
 				Serial.println("but it doesn't have a valid CRC!");
 			} else {
+				printAddress(address);
 				//all is ok, store it
 				memcpy(sensor[count]->addr, address, 8);
-				//sensor[count]->addr = address;
+				printAddress(sensor[count]->addr);
 				count++;
-
-				for (i = 0; i < 8; i++) {
-					if (address[i] < 9) {
-						Serial.print("0");
-					}
-					Serial.print("0x");
-					Serial.print(address[i], HEX);
-					if (i < 7) {
-						Serial.print(", ");
-					}
-				}
-				Serial.println("");
 				ok = 1;
 			}
 		}								//end if tmp
@@ -134,16 +120,19 @@ void lookUpSensors() {
 	}
 	Serial.println("--Suche beendet--");
 
-	digitalWrite(OW_PWR, 0);
 }
 
 //- user functions --------------------------------------------------------------------------------------------------------
 void initTH1() {											// init the sensor
 
 	pinMode(OW_PWR, OUTPUT);
-	pinMode(OW_PIN, INPUT_PULLUP);
+	// pinMode(OW_PIN, INPUT_PULLUP);
+
+	digitalWrite(OW_PWR, 1);
+	delay(2000);
 
 	lookUpSensors();
+	digitalWrite(OW_PWR, 0);
 
 #ifdef SER_DBG
 	dbg << "init th1\n";
@@ -154,11 +143,11 @@ void initTH1() {											// init the sensor
 // due to asynchronous measurement we simply can take the values very quick from variables
 void measureTH1(THSensor::s_meas *ptr) {
 
-	byte i;
+
 	int16_t t;
 
 #ifdef SER_DBG
-	for (i = 0; i < SENSOR_COUNT; i++) {
+	for (byte i = 0; i < SENSOR_COUNT; i++) {
 		dbg << "msTH1 OW-t: " << sensor[i]->celsius << ' ' << _TIME << '\n';
 	}
 #endif
@@ -176,10 +165,9 @@ void measureTH1(THSensor::s_meas *ptr) {
 	((uint8_t *) &(ptr->temp3))[0] = ((t >> 8));
 	((uint8_t *) &(ptr->temp3))[1] = t & 0xFF;
 
-	 t = sensor[3]->celsius / 10;
-	 ((uint8_t *) &(ptr->temp4))[0] = ((t >> 8));
-	 ((uint8_t *) &(ptr->temp4))[1] = t & 0xFF;
-
+	t = sensor[3]->celsius / 10;
+	((uint8_t *) &(ptr->temp4))[0] = ((t >> 8));
+	((uint8_t *) &(ptr->temp4))[1] = t & 0xFF;
 
 #ifdef SER_DBG
 	//dbg << "msTH1 t: " << DHT.temperature << ", h: " << DHT.humidity << ' ' << _TIME << '\n'; _delay_ms(10);
@@ -193,56 +181,8 @@ void measureTH1(THSensor::s_meas *ptr) {
 	((uint8_t *) &(ptr->bat))[1] = t & 0xFF;
 }
 
-void writeTimeToScratchpad(byte* address) {
-	//reset the bus
-	OW.reset();
-	//select our sensor
-	OW.select(address);
-	//CONVERT T function call (44h) which puts the temperature into the scratchpad
-	OW.write(0x44, 1);
-	//sleep a second for the write to take place
-	delay(1000);
-}
 
-void readTimeFromScratchpad(byte* address, byte* data) {
-	//reset the bus
-	OW.reset();
-	//select our sensor
-	OW.select(address);
-	//read the scratchpad (BEh)
-	OW.write(0xBE);
-	for (byte i = 0; i < 9; i++) {
-		data[i] = OW.read();
-	}
-}
 
-float getTemperature(byte* address) {
-	int tr;
-	byte data[12];
-
-	writeTimeToScratchpad(address);
-
-	readTimeFromScratchpad(address, data);
-
-	//put in temp all the 8 bits of LSB (least significant byte)
-	tr = data[0];
-
-	//check for negative temperature
-	if (data[1] > 0x80) {
-		tr = !tr + 1; //two's complement adjustment
-		tr = tr * -1; //flip value negative.
-	}
-
-	//COUNT PER Celsius degree (10h)
-	int cpc = data[7];
-	//COUNT REMAIN (0Ch)
-	int cr = data[6];
-
-	//drop bit 0
-	tr = tr >> 1;
-
-	return tr - (float) 0.25 + (cpc - cr) / (float) cpc;
-}
 
 // this is called regularly - real measurement is done here
 void measure() {
@@ -259,7 +199,7 @@ void measure() {
 		thTimer.set(88000);							// measurement every 90 secs
 		state = mWait;
 	} else if (state == mWait) {			// power on sensor and wait 1 sec
-		thTimer.set(1000);
+		//thTimer.set(1000);
 		digitalWrite(OW_PWR, 1);								// power on here
 
 		state = mPwrOn;
@@ -268,11 +208,20 @@ void measure() {
 #endif
 	} else if (state == mPwrOn) {			// now start measurement on DS18B20
 
-		for (i = 0; i < SENSOR_COUNT; i++) {
-			float temp = getTemperature(sensor[i]->addr);
-			Serial.print(temp);
-			Serial.println(" Celsius");
-			sensor[i]->celsius = temp;
+
+
+		for (byte i = 0; i < SENSOR_COUNT; i++) {
+			OW.reset();// attention - OW device get ready to communicate!
+			OW.select(sensor[i]->addr);	// skip rom selection - we have only one device attached
+			OW.write(0x44,1);
+			delay(1000);
+			OW.reset();		// attention - get ready to read result from DS18B20
+			OW.select(sensor[i]->addr);						// no rom selection;
+			OW.write(0xBE);							// read temp from scratchpad
+			sensor[i]->celsius = ((uint32_t) (OW.read() | (OW.read() << 8))	* 100) >> 4;
+
+			Serial.print(sensor[i]->celsius);
+			Serial.println(" Celsius:");
 		}
 
 		digitalWrite(OW_PWR, 0);							// power off DS18B20
@@ -330,6 +279,17 @@ void serialEvent() {
 #endif
 }
 
-
-
+void printAddress(byte* address) {
+	for (byte i = 0; i < 8; i++) {
+		if (address[i] < 9) {
+			Serial.print("0");
+		}
+		Serial.print("0x");
+		Serial.print(address[i], HEX);
+		if (i < 7) {
+			Serial.print(", ");
+		}
+	}
+	Serial.println("");
+}
 
