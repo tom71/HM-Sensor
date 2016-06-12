@@ -13,7 +13,7 @@
 #include "OneWire.h"
 #include <avr/wdt.h>
 
-#define SER_DBG
+// #define SER_DBG
 
 #define OW_PWR		9																		// power for DS18B20
 #define OW_PIN		5																		// this pin DS18B20 is connected to
@@ -25,19 +25,10 @@ waitTimer thTimer;
 
 typedef uint8_t DeviceAddress[4][8];
 
-// Device is a DS18B20 : 28 FF 72 12 67 14 02 2D
-// Device is a DS18B20 : 28 FF B1 2D 67 14 02 93
-// Device is a DS18B20 : 28 FF 99 2F 67 14 02 52
-// Device is a DS18B20 : 28 FF 3D 4A 54 14 01 B7
-
-DeviceAddress addr =
-{ { 0x28, 0xFF, 0x72, 0x12, 0x67, 0x14, 0x02, 0x2D },
-  { 0x28, 0xFF, 0xB1, 0x2D, 0x67, 0x14, 0x02, 0x93 },
-  { 0x28, 0xFF, 0x99, 0x2F, 0x67, 0x14, 0x02, 0x52 },
-  { 0x28, 0xFF, 0x3D, 0x4A, 0x54, 0x14, 0x01, 0xB7 } };
+DeviceAddress addr;
 
 void printAddress(byte* address);
-
+void lookUpSensors();
 
 int16_t celsius[SENSOR_COUNT];
 
@@ -78,7 +69,8 @@ void setup() {
 	// - AskSin related ---------------------------------------
 	hm.init();										// init the asksin framework
 	sei();
-	// enable interrupts
+	// search connected sensors
+	lookUpSensors();
 
 	// - user related -----------------------------------------
 #ifdef SER_DBG
@@ -127,14 +119,15 @@ void measureTH1(THSensor::s_meas *ptr) {
 	((uint8_t *) &(ptr->temp4))[0] = ((t >> 8));
 	((uint8_t *) &(ptr->temp4))[1] = t & 0xFF;
 
-#ifdef SER_DBG
-	//dbg << "msTH1 t: " << DHT.temperature << ", h: " << DHT.humidity << ' ' << _TIME << '\n'; _delay_ms(10);
-#endif
-
 	// fetch battery voltage
 	t = hm.bt.getVolts();
 	((uint8_t *) &(ptr->bat))[0] = t >> 8;
 	((uint8_t *) &(ptr->bat))[1] = t & 0xFF;
+
+#ifdef SER_DBG
+	dbg << "msTH1 bat: " << t << ' ' << _TIME << '\n';
+	_delay_ms(10);
+#endif
 }
 
 // this is called regularly - real measurement is done here
@@ -155,41 +148,41 @@ void measure() {
 		thTimer.set(1000);
 		digitalWrite(OW_PWR, 1);								// power on here
 		state = mPwrOn;
-		#ifdef SER_DBG
-				dbg << "power on Sensor" << ' ' << _TIME << '\n';
-		#endif
+#ifdef SER_DBG
+		dbg << "power on Sensor" << ' ' << _TIME << '\n';
+#endif
 	} else if (state == mPwrOn) {// now start measurement on DS18B20 and wait another second
 		thTimer.set(1000);
 		uint8_t rc = OW.reset();// attention - OW device get ready to communicate!
-		OW.skip();		// skip rom selection - we have only one device attached
+		OW.skip();		// skip rom selection - we read later all devices
 		OW.write(0x44);										// start conversion
-		#ifdef SER_DBG
-				dbg << "rc: " << rc << _TIME << '\n';
-		#endif
+#ifdef SER_DBG
+		dbg << "rc: " << rc << _TIME << '\n';
+#endif
 		state = mStartDS;
 	} else if (state == mStartDS) {
 
 		for (byte i = 0; i < SENSOR_COUNT; i++) {
-		#ifdef SER_DBG
-					dbg << "start reading" << ' ' << _TIME << '\n';
-		#endif
+#ifdef SER_DBG
+			dbg << "start reading" << ' ' << _TIME << '\n';
 			printAddress(addr[i]);
+#endif
 
 			OW.reset();		// attention - OW device get ready to communicate!
 			OW.select(addr[i]);	// select address
 			OW.write(0xBE);
 			// read temp from scratchpad
 			celsius[i] = ((uint32_t) (OW.read() | (OW.read() << 8)) * 100) >> 4;
-
-			Serial.print(celsius[i]);
-			Serial.println(" Celsius:");
+#ifdef SER_DBG
+			dbg << "Celsius: " << celsius[i] << _TIME << '\n';
+#endif
 		}
 
 		digitalWrite(OW_PWR, 0);							// power off DS18B20
-		#ifdef SER_DBG
-				dbg << "power off Sensor" << ' ' << _TIME << '\n';
-				_delay_ms(10);
-		#endif
+#ifdef SER_DBG
+		dbg << "power off Sensor" << ' ' << _TIME << '\n';
+		_delay_ms(10);
+#endif
 		state = mInit;
 	}
 }
@@ -240,11 +233,66 @@ void serialEvent() {
 #endif
 }
 
+void lookUpSensors() {
+
+	byte address[8];
+	byte count = 0;
+	byte ok = 0, tmp = 0;
+	digitalWrite(OW_PWR, 1);
+#ifdef SER_DBG
+	dbg << "Start searching\n";
+
+#endif
+	while (OW.search(address)) {
+		tmp = 0;
+		//0x10 = DS18S20
+		if (address[0] == 0x10) {
+#ifdef SER_DBG
+			dbg << "Device is a DS18S20 :";
+#endif
+			tmp = 1;
+		} else {
+			//0x28 = DS18B20
+			if (address[0] == 0x28) {
+#ifdef SER_DBG
+				dbg << "Device is a DS18B20 :";
+#endif
+				tmp = 1;
+			}
+		}
+		//display the address, if tmp is ok
+		if (tmp == 1) {
+			if (OneWire::crc8(address, 7) != address[7]) {
+#ifdef SER_DBG
+				dbg << "but it doesn't have a valid CRC!" << ' ' << _TIME << '\n';
+#endif
+
+			} else {
+				//all is ok, store it
+				memcpy(addr[count], address, 8);
+				printAddress(addr[count]);
+				count++;
+				ok = 1;
+			}
+		}								//end if tmp
+	}								//end while
+	if (ok == 0) {
+#ifdef SER_DBG
+		dbg << "Keine Sensoren gefunden" << ' ' << _TIME << '\n';
+#endif
+	}
+#ifdef SER_DBG
+	dbg << "--Suche beendet--" << ' ' << _TIME << '\n';
+#endif
+	digitalWrite(OW_PWR, 0);
+}
+
 void printAddress(byte* address) {
+#ifdef SER_DBG
 	for (byte i = 0; i < 8; i++) {
 		Serial.print("0x");
 		if (address[i] < 16) {
-					Serial.print("0");
+			Serial.print("0");
 		}
 		Serial.print(address[i], HEX);
 		if (i < 7) {
@@ -252,5 +300,6 @@ void printAddress(byte* address) {
 		}
 	}
 	Serial.println("");
+#endif
 }
 
